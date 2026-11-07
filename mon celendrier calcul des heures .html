@@ -1,0 +1,558 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mon calendrier professionnel</title>
+
+<style>
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 20px;
+  font-family: Arial, sans-serif;
+  background: #f5f6fa;
+  color: #263238;
+}
+
+.container {
+  max-width: 1100px;
+  margin: auto;
+}
+
+h1 { text-align: center; color: #405b72; }
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.summary-card {
+  background: white;
+  border-radius: 12px;
+  padding: 18px;
+  text-align: center;
+  box-shadow: 0 2px 8px #0001;
+}
+
+.summary-card strong {
+  display: block;
+  font-size: 25px;
+  color: #27845b;
+  margin-top: 8px;
+}
+
+.calendar, .panel {
+  background: white;
+  padding: 15px;
+  border-radius: 14px;
+  margin-bottom: 18px;
+  box-shadow: 0 2px 8px #0001;
+}
+
+.month-navigation {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+button {
+  border: 0;
+  border-radius: 8px;
+  padding: 10px 14px;
+  cursor: pointer;
+  background: #527b96;
+  color: white;
+}
+
+button:hover { opacity: .85; }
+
+.weekdays, .days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.weekdays div {
+  text-align: center;
+  font-weight: bold;
+  padding: 8px 0;
+}
+
+.day {
+  min-height: 120px;
+  border: 1px solid #e1e6ea;
+  border-radius: 8px;
+  padding: 6px;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.day:hover { background: #f0f7fa; }
+.day.selected { border: 2px solid #527b96; background: #eef6fa; }
+
+.appointment {
+  border-radius: 5px;
+  padding: 5px;
+  margin: 4px 0;
+  font-size: 11px;
+  color: #20563d;
+  background: #dcf5e6;
+}
+
+.appointment.event {
+  background: #ffecd6;
+  color: #89501c;
+}
+
+.appointment b { display: block; }
+
+form { display: grid; gap: 12px; }
+
+label { font-weight: bold; font-size: 14px; }
+
+input, select {
+  width: 100%;
+  padding: 11px;
+  border: 1px solid #d5dce2;
+  border-radius: 7px;
+  font-size: 15px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.calculation {
+  background: #edf7f0;
+  padding: 12px;
+  border-radius: 8px;
+  color: #237248;
+  font-weight: bold;
+}
+
+.appointment-list { display: grid; gap: 10px; }
+
+.appointment-item {
+  border: 1px solid #e1e6ea;
+  padding: 12px;
+  border-radius: 9px;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+}
+
+.appointment-item p {
+  margin: 5px 0;
+  font-size: 13px;
+  color: #687780;
+}
+
+.actions { display: flex; gap: 5px; flex-wrap: wrap; }
+.delete { background: #c74c4c; }
+.edit { background: #657c8c; }
+.cancel { background: #888; }
+
+@media(max-width: 600px) {
+  body { padding: 7px; }
+  .summary { grid-template-columns: 1fr; }
+  .day { min-height: 85px; padding: 3px; }
+  .appointment { font-size: 9px; padding: 3px; }
+  .weekdays div { font-size: 10px; }
+  .form-row { grid-template-columns: 1fr; }
+  .appointment-item {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<h1>💆 Mon calendrier professionnel</h1>
+
+<div class="summary">
+  <div class="summary-card">
+    Heures du mois
+    <strong id="totalHours">0h00</strong>
+  </div>
+  <div class="summary-card">
+    Revenus du mois
+    <strong id="totalIncome">0 ₪</strong>
+  </div>
+  <div class="summary-card">
+    Rendez-vous
+    <strong id="totalAppointments">0</strong>
+  </div>
+</div>
+
+<div class="calendar">
+  <div class="month-navigation">
+    <button onclick="changeMonth(-1)">❮</button>
+    <h2 id="monthTitle"></h2>
+    <button onclick="changeMonth(1)">❯</button>
+  </div>
+
+  <div class="weekdays">
+    <div>Lun</div><div>Mar</div><div>Mer</div>
+    <div>Jeu</div><div>Ven</div><div>Sam</div><div>Dim</div>
+  </div>
+
+  <div class="days" id="calendarDays"></div>
+</div>
+
+<div class="panel">
+  <h2 id="formTitle">Ajouter un rendez-vous</h2>
+
+  <form id="appointmentForm">
+    <label>Date</label>
+    <input type="date" id="date" required>
+
+    <label>Nom du massage ou événement</label>
+    <input type="text" id="name" placeholder="Ex. Massage relaxant" required>
+
+    <label>Type</label>
+    <select id="type">
+      <option value="Massage">💆 Massage</option>
+      <option value="Événement">🎉 Événement</option>
+      <option value="Autre">Autre</option>
+    </select>
+
+    <div class="form-row">
+      <div>
+        <label>Heure de début</label>
+        <input type="time" id="start" value="09:00" required>
+      </div>
+      <div>
+        <label>Heure de fin</label>
+        <input type="time" id="end" value="10:00" required>
+      </div>
+    </div>
+
+    <div class="calculation" id="calculation">
+      Durée : 1h00 | Revenu : 100 ₪
+    </div>
+
+    <button type="submit" id="saveButton">
+      Ajouter au calendrier
+    </button>
+
+    <button type="button" class="cancel" onclick="resetForm()">
+      Annuler
+    </button>
+  </form>
+</div>
+
+<div class="panel">
+  <h2 id="selectedTitle">Mes rendez-vous</h2>
+  <div class="appointment-list" id="appointmentList"></div>
+</div>
+
+</div>
+
+<script>
+const RATE = 100;
+const STORAGE_KEY = "monCalendrierMassages_v1";
+
+let appointments = loadAppointments();
+let currentDate = new Date();
+let selectedDate = localDateString(new Date());
+let editingId = null;
+
+function localDateString(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth()+1).padStart(2,"0");
+  const d = String(date.getDate()).padStart(2,"0");
+  return `${y}-${m}-${d}`;
+}
+
+function loadAppointments() {
+  try {
+    const data = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveData() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(appointments));
+}
+
+function duration(start,end) {
+  const [sh,sm] = start.split(":").map(Number);
+  const [eh,em] = end.split(":").map(Number);
+  return (eh*60+em)-(sh*60+sm);
+}
+
+function formatDuration(minutes) {
+  const h = Math.floor(minutes/60);
+  const m = minutes%60;
+  return `${h}h${String(m).padStart(2,"0")}`;
+}
+
+function formatMoney(value) {
+  return `${value.toFixed(0)} ₪`;
+}
+
+function changeMonth(direction) {
+  currentDate.setMonth(currentDate.getMonth()+direction);
+  renderCalendar();
+  updateSummary();
+}
+
+function renderCalendar() {
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+
+  document.getElementById("monthTitle").textContent =
+    currentDate.toLocaleDateString("fr-FR", {
+      month:"long", year:"numeric"
+    });
+
+  const firstDay = (new Date(year,month,1).getDay()+6)%7;
+  const daysInMonth = new Date(year,month+1,0).getDate();
+
+  const container = document.getElementById("calendarDays");
+  container.innerHTML = "";
+
+  for(let i=0;i<firstDay;i++) {
+    container.appendChild(document.createElement("div"));
+  }
+
+  for(let d=1;d<=daysInMonth;d++) {
+    const date = `${year}-${String(month+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+
+    const cell = document.createElement("div");
+    cell.className = "day" + (date===selectedDate?" selected":"");
+
+    const number = document.createElement("div");
+    number.className = "day-number";
+    number.textContent = d;
+    cell.appendChild(number);
+
+    appointments.filter(a=>a.date===date).forEach(a=>{
+      const item = document.createElement("div");
+      item.className = "appointment" +
+        (a.type==="Massage"?"":" event");
+
+      const title = document.createElement("b");
+      title.textContent = a.name;
+
+      const time = document.createElement("span");
+      time.textContent = `${a.start} - ${a.end}`;
+
+      const durationText = document.createElement("span");
+      durationText.textContent =
+        ` · ${formatDuration(duration(a.start,a.end))}`;
+
+      const revenueText = document.createElement("b");
+      revenueText.textContent =
+        formatMoney(duration(a.start,a.end)/60*RATE);
+
+      item.append(title,time,durationText,revenueText);
+      cell.appendChild(item);
+    });
+
+    cell.addEventListener("click",()=>{
+      selectedDate=date;
+      document.getElementById("date").value=date;
+      renderCalendar();
+      renderAppointments();
+    });
+
+    container.appendChild(cell);
+  }
+
+  renderAppointments();
+}
+
+function updateSummary() {
+  const prefix = `${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,"0")}`;
+
+  const monthly = appointments.filter(a=>a.date.startsWith(prefix));
+
+  const minutes = monthly.reduce(
+    (sum,a)=>sum+duration(a.start,a.end),0
+  );
+
+  const income = minutes/60*RATE;
+
+  document.getElementById("totalHours").textContent =
+    formatDuration(minutes);
+
+  document.getElementById("totalIncome").textContent =
+    formatMoney(income);
+
+  document.getElementById("totalAppointments").textContent =
+    monthly.length;
+}
+
+function renderAppointments() {
+  const list = document.getElementById("appointmentList");
+  list.innerHTML = "";
+
+  document.getElementById("selectedTitle").textContent =
+    `Rendez-vous du ${selectedDate}`;
+
+  const selected = appointments.filter(a=>a.date===selectedDate);
+
+  if(selected.length===0) {
+    list.textContent = "Aucun rendez-vous pour cette date.";
+  }
+
+  selected.forEach(a=>{
+    const item = document.createElement("div");
+    item.className="appointment-item";
+
+    const info = document.createElement("div");
+
+    const title = document.createElement("strong");
+    title.textContent = `${a.name} (${a.type})`;
+
+    const details = document.createElement("p");
+    details.textContent =
+      `${a.start} - ${a.end} | ${formatDuration(duration(a.start,a.end))} | ${formatMoney(duration(a.start,a.end)/60*RATE)}`;
+
+    info.append(title,details);
+
+    const actions = document.createElement("div");
+    actions.className="actions";
+
+    const edit = document.createElement("button");
+    edit.className="edit";
+    edit.textContent="Modifier";
+    edit.onclick=()=>editAppointment(a.id);
+
+    const remove = document.createElement("button");
+    remove.className="delete";
+    remove.textContent="Supprimer";
+    remove.onclick=()=>deleteAppointment(a.id);
+
+    actions.append(edit,remove);
+    item.append(info,actions);
+    list.appendChild(item);
+  });
+}
+
+function resetForm() {
+  editingId=null;
+  document.getElementById("appointmentForm").reset();
+  document.getElementById("date").value=selectedDate;
+  document.getElementById("start").value="09:00";
+  document.getElementById("end").value="10:00";
+  document.getElementById("formTitle").textContent="Ajouter un rendez-vous";
+  document.getElementById("saveButton").textContent="Ajouter au calendrier";
+  updateCalculation();
+}
+
+function editAppointment(id) {
+  const a=appointments.find(x=>x.id===id);
+  if(!a) return;
+
+  editingId=id;
+  selectedDate=a.date;
+
+  document.getElementById("date").value=a.date;
+  document.getElementById("name").value=a.name;
+  document.getElementById("type").value=a.type;
+  document.getElementById("start").value=a.start;
+  document.getElementById("end").value=a.end;
+
+  document.getElementById("formTitle").textContent="Modifier le rendez-vous";
+  document.getElementById("saveButton").textContent="Enregistrer les modifications";
+
+  renderCalendar();
+  updateCalculation();
+}
+
+function deleteAppointment(id) {
+  if(!confirm("Supprimer ce rendez-vous ?")) return;
+
+  appointments=appointments.filter(a=>a.id!==id);
+  saveData();
+  renderCalendar();
+  updateSummary();
+}
+
+document.getElementById("appointmentForm")
+.addEventListener("submit",function(e) {
+  e.preventDefault();
+
+  const date=document.getElementById("date").value;
+  const name=document.getElementById("name").value.trim();
+  const type=document.getElementById("type").value;
+  const start=document.getElementById("start").value;
+  const end=document.getElementById("end").value;
+
+  const minutes=duration(start,end);
+
+  if(!date||!name||minutes<=0) {
+    alert("Vérifie la date, le nom et les horaires.");
+    return;
+  }
+
+  const appointment={
+    id:editingId ?? Date.now(),
+    date,name,type,start,end
+  };
+
+  if(editingId!==null) {
+    appointments=appointments.map(a=>
+      a.id===editingId?appointment:a
+    );
+  } else {
+    appointments.push(appointment);
+  }
+
+  selectedDate=date;
+  currentDate=new Date(date+"T12:00:00");
+
+  saveData();
+  resetForm();
+  renderCalendar();
+  updateSummary();
+});
+
+function updateCalculation() {
+  const start=document.getElementById("start").value;
+  const end=document.getElementById("end").value;
+
+  if(!start||!end) return;
+
+  const minutes=duration(start,end);
+
+  document.getElementById("calculation").textContent =
+    minutes>0
+      ? `Durée : ${formatDuration(minutes)} | Revenu : ${formatMoney(minutes/60*RATE)}`
+      : "Vérifie l'heure de fin.";
+}
+
+document.getElementById("start").addEventListener("input",updateCalculation);
+document.getElementById("end").addEventListener("input",updateCalculation);
+
+document.getElementById("date").addEventListener("change",e=>{
+  selectedDate=e.target.value;
+  if(selectedDate) {
+    currentDate=new Date(selectedDate+"T12:00:00");
+    renderCalendar();
+    updateSummary();
+  }
+});
+
+resetForm();
+renderCalendar();
+updateSummary();
+</script>
+</body>
+</html>
